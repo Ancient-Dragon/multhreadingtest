@@ -10,12 +10,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Multithreading {
 
-    EventList rows = GlazedLists.threadSafeList(new BasicEventList());
+    EventList<TestObject> rows = GlazedLists.threadSafeList(new BasicEventList<>(1000));
 
     public Multithreading() {
-        rows.add(new Object());
-        rows.add(new Object());
-        rows.add(new Object());
     }
     public EventList getRows() {
         return rows;
@@ -23,11 +20,11 @@ public class Multithreading {
 
     public void setRows(int i, TestObject x) {
         try {
-            System.out.println(x.getCount());
+            System.out.println(x.getCount() + " " + i + " " + Thread.currentThread().getName());
             this.rows.getReadWriteLock().writeLock().lock();
             this.rows.set(i, x);
         } catch (Exception e) {
-            System.out.println(e);
+            System.out.println(e + Thread.currentThread().getName());
         } finally {
             this.rows.getReadWriteLock().writeLock().unlock();
         }
@@ -36,31 +33,20 @@ public class Multithreading {
     public static void main(String[] args) throws InterruptedException {
         Multithreading multithreading = new Multithreading();
 
-        int threadcount = 3;
+        int threadcount = 1000;
         ExecutorService executorService = Executors.newFixedThreadPool(threadcount);
         AtomicInteger counter = new AtomicInteger();
         CountDownLatch countDownLatch = new CountDownLatch(threadcount);
         CountDownLatch countDownLatch1 = new CountDownLatch(1);
-        Future<Boolean> future = executorService.submit(() -> {
-            countDownLatch1.await();
-            multithreading.setRows(counter.getAndIncrement(), new TestObject(counter.get()));
-            countDownLatch.countDown();;
-            return true;
-        });
-
-        Future<Boolean> future2 = executorService.submit(() -> {
-            countDownLatch1.await();
-            multithreading.setRows(counter.getAndIncrement(), new TestObject(counter.get()));
-            countDownLatch.countDown();;
-            return true;
-        });
-
-        Future<Boolean> future3 = executorService.submit(() -> {
-            countDownLatch1.await();
-            multithreading.setRows(counter.getAndIncrement(), new TestObject(counter.get()));
-            countDownLatch.countDown();;
-            return true;
-        });
+        for(int x = 0; x < 1000; x++ ) {
+            AtomicInteger atomicInteger = new AtomicInteger(0);
+            Future<Boolean> future = executorService.submit(() -> {
+                countDownLatch1.await();
+                multithreading.setRows(counter.getAndIncrement(), new TestObject(atomicInteger.incrementAndGet()));
+                countDownLatch.countDown();;
+                return true;
+            });
+        }
 
         countDownLatch1.countDown();;
         countDownLatch.await();
